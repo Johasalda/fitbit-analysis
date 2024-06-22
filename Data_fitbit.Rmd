@@ -1,0 +1,160 @@
+---
+title: "Informe de Analisis de datos Fitbit"
+author: "Johanna"
+date: "2024-06-20"
+output: html_document
+---
+
+## Introducción
+
+Este informe proporciona un análisis descriptivo y exploratorio de los datos de Fitbit, (Base de datos tomada de Kaggle). El objetivo es identificar patrones y comportamientos que puedan ser útiles para diseñar campañas de marketing para la marca.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Carga y preparación de los datos
+
+Se instalaron y cargaron los paquetes necesarios para el analisis, asi como la data.
+
+##### Instalacion de paquetes
+
+install.packages("tidyverse") library(tidyverse)
+
+install.packages("e1071") library("e1071")
+
+##### Mostrar las primeras filas del dataset
+
+head(dailyActivity_merged)
+
+##### Ver la estructura del dataset
+
+str(dailyActivity_merged)
+
+##### Obtener un resumen de las columnas del dataset
+
+summary(dailyActivity_merged)
+
+##### Verificar valores faltantes en cada columna
+
+sapply(dailyActivity_merged, function(x) sum(is.na(x)))
+
+##### Eliminar filas duplicadas
+
+dailyActivity_merged \<- dailyActivity_merged %\>% distinct()
+
+**Análisis Descriptivo**: Incluye código para calcular estadísticas descriptivas y mostrarlas en el informe.
+
+``` r
+promedios <- dailyActivity_merged %>%
+   summarise ( avg_steps = mean(TotalSteps, na.rm = TRUE),
+               avg_distance = mean(TotalDistance, na.rm = TRUE),
+               avg_calories = mean(Calories, na.rm = TRUE),
+               avg_very_active_minutes = mean(VeryActiveMinutes, na.rm = TRUE),
+               avg_light_active_minutes = mean(LightlyActiveMinutes, na.rm = TRUE),
+               avg_sedentary_minutes = mean(SedentaryMinutes, na.rm = TRUE))
+
+print(promedios)
+```
+
+##### Segmentar usuarios según su nivel de actividad
+
+``` r
+dailyActivity_merged$activity_level <- cut
+(dailyActivity_merged$TotalSteps,
+  breaks = c(-Inf, 5000, 7500, 10000, Inf)
+  labels = c("sedentary", "Slightly Active","Moderately Active", "Very active"))
+```
+
+##### Analizar las características de cada segmento
+
+``` r
+segment_summary <- dailyActivity_merged %>%
+  group_by(activity_level) %>%
+  summarise (avg_steps = mean(TotalSteps, na.rm = TRUE), 
+             avg_distance = mean(TotalDistance, na.rm = TRUE),
+             avg_calories = mean(Calories, na.rm = TRUE),
+             avg_very_active_minutes = mean(VeryActiveMinutes, na.rm = TRUE),
+             avg_light_active_minutes = mean(LightlyActiveMinutes, na.rm = TRUE),
+             avg_sedentary_minutes = mean(SedentaryMinutes, na.rm = TRUE))
+
+print(segment_summary)
+```
+
+##### Identificar usuarios sedentarios
+
+Definición: Usuarios con más de 8 horas sedentarias diarias
+
+``` r
+dailyActivity_merged <- dailyActivity_merged %>%
+  mutate(activity_level = case_when(
+    SedentaryMinutes >= 480 ~ "Sedentario",
+    TRUE ~ "Activo"
+  ))
+
+table(dailyActivity_merged$activity_level)
+```
+
+### Medidas de sesgo
+
+``` r
+sesgo_total_pasos <- skewness(dailyActivity_merged$TotalSteps, na.rm = TRUE)
+sesgo_sedentario_minutos <- skewness(dailyActivity_merged$SedentaryMinutes, na.rm = TRUE)
+sesgo_calorias <- skewness(dailyActivity_merged$Calories, na.rm = TRUE)
+
+cat("Sesgo de Total_de_pasos:", sesgo_total_pasos, "\n")
+cat("Sesgo de SedentarioMinutos:", sesgo_sedentario_minutos, "\n")
+cat("Sesgo de calorías:", sesgo_calorias, "\n")
+```
+
+## Visualizaciones
+
+Gráfico de barras de la distribución de usuarios sedentarios vs activos
+
+``` r
+dailyActivity_merged %>%
+  group_by(activity_level) %>%
+  summarise(count = n()) %>%
+  ggplot(aes(x = activity_level, y = count, fill = activity_level)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Distribución de Usuarios por Nivel de Actividad",
+       x = "Nivel de Actividad",
+       y = "Número de Usuarios") +
+  theme_minimal()
+```
+
+![](Distribucion%20de%20usuarios%20por%20nivel%20de%20actividad.png)
+
+Gráfico de caja para comparar los minutos sedentarios
+
+``` r
+ggplot(dailyActivity_merged, aes(x = activity_level, y = SedentaryMinutes, fill = activity_level)) +
+  geom_boxplot() +
+  labs(title = "Comparación de Minutos Sedentarios por Nivel de Actividad",
+       x = "Nivel de Actividad",
+       y = "Minutos Sedentarios") +
+  theme_minimal()
+```
+
+![](Comparación%20de%20minutos%20sedentarios.png)
+
+Histograma de la distribución de minutos sedentarios
+
+``` r
+ggplot(dailyActivity_merged, aes(x = SedentaryMinutes, fill = activity_level)) +
+  geom_histogram (binwidth = 30, alpha = 0.7, position = 'identity') +
+  labs(title = "Distribución de Minutos Sedentarios",
+       x = "Minutos Sedentarios",
+       y = "Frecuencia") +
+  theme_minimal()
+```
+
+![](Distribución%20de%20minutos%20sedentarios.png)
+
+## Conclusiones
+
+Este análisis descriptivo y exploratorio de los datos de Fitbit ha revelado patrones importantes en el comportamiento de los usuarios. Los usuarios sedentarios, definidos como aquellos con más de 8 horas de actividad sedentaria diaria, representan una proporción significativa de la muestra. Las medidas de sesgo y curtosis indican una distribución asimétrica en los datos de pasos, minutos sedentarios y calorías quemadas.
+
+Se puede generar una campaña de marketing dirigida a usuarios sedentarios de acuerdo al análisis de datos de Fitbit para motivar a los usuarios a ser más activos.
+
+1 se pueden crear estrategias de incentivos, desafíos motivacionales en los cuales puedan participar por productos de la marca. 2. Educar sobre los beneficios de la actividad física, con esto posible no solo mejorar la salud y el bienestar de los usuarios, sino también aumentar su compromiso con la marca y los productos.
